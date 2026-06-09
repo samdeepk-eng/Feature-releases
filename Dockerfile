@@ -6,7 +6,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY app ./app
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[server]"
 
 EXPOSE 8000
 

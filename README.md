@@ -142,7 +142,7 @@ included Mangum handler.
 
 Lambda settings:
 
-- Runtime: Python 3.12
+- Runtime: Python 3.14, or another Python runtime supported by AWS Lambda
 - Handler: `app.main.handler`
 - Timeout: 15 seconds
 - Function URL auth type: `NONE`
@@ -166,17 +166,25 @@ After creating the Function URL, configure Slack Event Subscriptions to call:
 https://<lambda-function-url>/slack/events
 ```
 
-For a zip-based deployment, install dependencies into a build directory, copy
-the app code, zip it, and update the Lambda function:
+For a zip-based deployment, build the package with the same Python runtime as
+your Lambda function. If the Lambda runtime is Python 3.14, run these commands
+with Python 3.14:
 
 ```bash
 rm -rf build lambda.zip
-python3 -m pip install --target build .
+python3.14 -m pip install --target build .
 cp -R app build/app
 (cd build && zip -r ../lambda.zip .)
 aws lambda update-function-code \
   --function-name <function-name> \
   --zip-file fileb://lambda.zip
+```
+
+The base install is intentionally Lambda-focused. For local server or Docker
+runtime installs, use the `server` extra:
+
+```bash
+python -m pip install ".[server]"
 ```
 
 For the live demo, post a release-looking message in channel `C0B8VL89V0B`.
