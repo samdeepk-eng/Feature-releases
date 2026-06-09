@@ -134,3 +134,51 @@ Health check:
 ```bash
 curl http://localhost:8000/healthz
 ```
+
+## AWS Lambda Function URL deployment
+
+For a low-cost demo deployment on AWS, run this FastAPI app on Lambda using the
+included Mangum handler.
+
+Lambda settings:
+
+- Runtime: Python 3.12
+- Handler: `app.main.handler`
+- Timeout: 15 seconds
+- Function URL auth type: `NONE`
+
+Minimum environment variables for the test channel demo:
+
+```env
+SLACK_SIGNING_SECRET=<from Slack app>
+SLACK_CHANNEL_ID=C0B8VL89V0B
+SLACK_CHANNEL_NAME=<test-channel-name>
+PORT_CLIENT_ID=<from Port>
+PORT_CLIENT_SECRET=<from Port>
+PORT_BLUEPRINT_IDENTIFIER=slack_use_case
+TARGET_REPOSITORY_URL=https://github.com/samdeepk-eng/Feature-releases.git
+TARGET_BRANCH=main
+```
+
+After creating the Function URL, configure Slack Event Subscriptions to call:
+
+```text
+https://<lambda-function-url>/slack/events
+```
+
+For a zip-based deployment, install dependencies into a build directory, copy
+the app code, zip it, and update the Lambda function:
+
+```bash
+rm -rf build lambda.zip
+python3 -m pip install --target build .
+cp -R app build/app
+(cd build && zip -r ../lambda.zip .)
+aws lambda update-function-code \
+  --function-name <function-name> \
+  --zip-file fileb://lambda.zip
+```
+
+For the live demo, post a release-looking message in channel `C0B8VL89V0B`.
+When moving to the production feature releases channel, set
+`SLACK_CHANNEL_ID=C067Z2CJ0H0` and invite the Slack app to that channel.

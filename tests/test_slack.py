@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import Settings
-from app.main import create_app
+from app.main import create_app, handler
 from app.slack import (
     SlackSignatureError,
     parse_release_announcement,
@@ -65,6 +65,10 @@ def test_verifies_valid_slack_signature() -> None:
         signed_headers(payload, timestamp)["X-Slack-Signature"],
         payload,
     )
+
+
+def test_lambda_handler_is_available() -> None:
+    assert callable(handler)
 
 
 def test_rejects_stale_slack_signature() -> None:

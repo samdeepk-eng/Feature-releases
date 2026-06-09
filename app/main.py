@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from mangum import Mangum
 
 from app.config import Settings
 from app.port import PortClient
@@ -107,3 +108,4 @@ async def upsert_announcement(
 
 
 app = create_app()
+handler = Mangum(app)
