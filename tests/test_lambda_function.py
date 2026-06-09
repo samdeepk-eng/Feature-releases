@@ -7,6 +7,7 @@ import time
 
 import lambda_function
 import lambda_function_paste_only
+import lambda_verify_only
 
 
 SECRET = "test-secret"
@@ -117,3 +118,20 @@ def test_paste_only_lambda_returns_url_verification_before_config(monkeypatch) -
     assert response["statusCode"] == 200
     assert response["headers"]["content-type"] == "text/plain"
     assert response["body"] == "slack-challenge"
+
+
+def test_verify_only_lambda_echoes_slack_challenge() -> None:
+    response = lambda_verify_only.lambda_handler(
+        {
+            "headers": {},
+            "body": json.dumps(
+                {"type": "url_verification", "challenge": "verify-only-challenge"}
+            ),
+            "isBase64Encoded": False,
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 200
+    assert response["headers"]["content-type"] == "text/plain"
+    assert response["body"] == "verify-only-challenge"
