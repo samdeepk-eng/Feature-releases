@@ -171,6 +171,14 @@ This quick path does not require a deployment zip, S3 upload, SAM, Docker, or
 GitHub Actions. It is intended for a demo. The packaged app and templates below
 are better repeatable deployment paths.
 
+If Lambda shows `Unable to import module 'lambda_function'`, open the function's
+**Runtime settings** and set the handler to the filename shown in the code editor
+plus `.lambda_handler`. For CloudFormation inline console code, this is usually:
+
+```text
+index.lambda_handler
+```
+
 The repo includes a plain CloudFormation template at `template.yaml`. It creates:
 
 - The Lambda function
