@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Minimal console-friendly Slack-to-Port Lambda and Function URL.
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: feature-releases-slack-port-demo
+  LambdaRuntime:
+    Type: String
+    Default: python3.14
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+  SlackChannelId:
+    Type: String
+    Default: C0B8VL89V0B
+  SlackChannelName:
+    Type: String
+    Default: test-channel
+  SlackWorkspaceDomain:
+    Type: String
+    Default: ""
+  PortClientId:
+    Type: String
+    NoEcho: true
+  PortClientSecret:
+    Type: String
+    NoEcho: true
+  TargetRepositoryUrl:
+    Type: String
+    Default: https://github.com/samdeepk-eng/Feature-releases.git
+  TargetBranch:
+    Type: String
+    Default: main
+
+Resources:
+  SlackToPortLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ServiceName}"
+      RetentionInDays: 7
+
+  SlackToPortRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: write-cloudwatch-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${SlackToPortLogGroup.Arn}:*"
+
+  SlackToPortFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - SlackToPortLogGroup
+      - SlackToPortRole
+    Properties:
+      FunctionName: !Ref ServiceName
+      Runtime: !Ref LambdaRuntime
+      Handler: index.lambda_handler
+      Role: !GetAtt SlackToPortRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Code:
+        ZipFile: |
+          import json
+
+          def lambda_handler(event, context):
+              return {
+                  "statusCode": 200,
+                  "headers": {"content-type": "application/json"},
+                  "body": json.dumps({
+                      "ok": False,
+                      "message": "Paste the repository lambda_function.py code into this Lambda function."
+                  }),
+              }
+      Environment:
+        Variables:
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          SLACK_CHANNEL_ID: !Ref SlackChannelId
+          SLACK_CHANNEL_NAME: !Ref SlackChannelName
+          SLACK_WORKSPACE_DOMAIN: !Ref SlackWorkspaceDomain
+          PORT_BASE_URL: https://api.getport.io
+          PORT_CLIENT_ID: !Ref PortClientId
+          PORT_CLIENT_SECRET: !Ref PortClientSecret
+          PORT_BLUEPRINT_IDENTIFIER: slack_use_case
+          TARGET_REPOSITORY_URL: !Ref TargetRepositoryUrl
+          TARGET_BRANCH: !Ref TargetBranch
+
+  SlackToPortFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      InvokeMode: BUFFERED
+      TargetFunctionArn: !Ref SlackToPortFunction
+
+  SlackToPortFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref SlackToPortFunction
+      FunctionUrlAuthType: NONE
+      Principal: "*"
+
+Outputs:
+  LambdaFunctionName:
+    Value: !Ref SlackToPortFunction
+  FunctionUrl:
+    Value: !GetAtt SlackToPortFunctionUrl.FunctionUrl
+  SlackEventSubscriptionUrl:
+    Value: !Sub "${SlackToPortFunctionUrl.FunctionUrl}slack/events"
