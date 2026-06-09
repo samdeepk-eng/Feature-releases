@@ -143,25 +143,33 @@ included Mangum handler.
 ### Quick AWS Console demo
 
 For the lightest demo path, use the standard-library-only Lambda file:
-`lambda_function.py`.
+`lambda_function_paste_only.py`.
 
-1. Open AWS CloudFormation.
-2. Create a stack by uploading `template.console.yaml`.
-3. Fill in:
-   - `SlackSigningSecret`
-   - `SlackChannelId` as `C0B8VL89V0B`
-   - `SlackChannelName`
-   - `PortClientId`
-   - `PortClientSecret`
-4. After the stack completes, open the created Lambda function.
-5. Replace the placeholder code with the contents of `lambda_function.py`.
+1. Create a Python 3.14 Lambda in the AWS console.
+2. Enable a Lambda Function URL with auth type `NONE`.
+3. Open `lambda_function_paste_only.py`.
+4. Fill the `CONFIG` block at the top:
+   - `SLACK_SIGNING_SECRET`
+   - `SLACK_CHANNEL_ID` as `C0B8VL89V0B`
+   - `SLACK_CHANNEL_NAME`
+   - `PORT_CLIENT_ID`
+   - `PORT_CLIENT_SECRET`
+5. Paste the whole file into the Lambda code editor.
 6. Click **Deploy** in the Lambda console.
-7. Copy the CloudFormation output `SlackEventSubscriptionUrl` into Slack Event
-   Subscriptions.
+7. Use this Slack Event Subscription request URL:
+
+   ```text
+   https://<lambda-function-url>/slack/events
+   ```
+
+The Slack signing secret and Port credentials must exist somewhere. In this
+paste-only demo, they live directly in the Lambda code's `CONFIG` block. This is
+acceptable for a short-lived throwaway demo, but use Lambda environment
+variables or Secrets Manager for anything long-lived.
 
 This quick path does not require a deployment zip, S3 upload, SAM, Docker, or
-GitHub Actions. It is intended for a demo. The packaged app and `template.yaml`
-below are a better repeatable deployment path.
+GitHub Actions. It is intended for a demo. The packaged app and templates below
+are better repeatable deployment paths.
 
 The repo includes a plain CloudFormation template at `template.yaml`. It creates:
 
