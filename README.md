@@ -75,6 +75,20 @@ Useful optional values:
 - `PORT_DEFAULT_STATUS` defaults to `ready_for_cursor`.
 - `PORT_DEFAULT_PRIORITY` defaults to `medium`.
 
+### Testing with the test Slack channel
+
+To test before listening to the production feature releases channel, deploy the
+service with:
+
+```env
+SLACK_CHANNEL_ID=C0B8VL89V0B
+SLACK_CHANNEL_NAME=<test-channel-name>
+```
+
+Invite the Slack app to that channel, then post a release-looking message using
+the example format above. Switch `SLACK_CHANNEL_ID` back to `C067Z2CJ0H0` before
+using the service for the production feature releases channel.
+
 ## Local development
 
 ```bash
