@@ -190,3 +190,52 @@ python -m pip install ".[server]"
 For the live demo, post a release-looking message in channel `C0B8VL89V0B`.
 When moving to the production feature releases channel, set
 `SLACK_CHANNEL_ID=C067Z2CJ0H0` and invite the Slack app to that channel.
+
+### Deploying with GitHub Actions
+
+This repo includes a manual GitHub Actions workflow,
+`.github/workflows/deploy-lambda.yml`, backed by the SAM template in
+`template.yaml`. It creates or updates:
+
+- The Lambda function
+- The Lambda execution role and CloudWatch Logs permission
+- A public Lambda Function URL
+- The Lambda environment variables
+
+Create these GitHub repository secrets:
+
+```text
+AWS_ROLE_TO_ASSUME
+SLACK_SIGNING_SECRET
+PORT_CLIENT_ID
+PORT_CLIENT_SECRET
+```
+
+Create these GitHub repository variables:
+
+```text
+AWS_REGION
+SLACK_WORKSPACE_DOMAIN
+```
+
+`AWS_ROLE_TO_ASSUME` should be an IAM role that trusts GitHub Actions OIDC for
+this repository and can deploy the CloudFormation/SAM stack. The deployment
+workflow does not require long-lived AWS access keys.
+
+To deploy the test channel demo:
+
+1. Open **Actions** in GitHub.
+2. Run **Deploy Lambda**.
+3. Use the defaults:
+   - `stack_name`: `feature-releases-slack-port-demo`
+   - `environment_name`: `demo`
+   - `slack_channel_id`: `C0B8VL89V0B`
+   - `target_branch`: `main`
+4. Copy the `SlackEventSubscriptionUrl` workflow output into Slack Event
+   Subscriptions.
+
+To deploy the production feature releases channel, run the same workflow with:
+
+```text
+slack_channel_id=C067Z2CJ0H0
+```

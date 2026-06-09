@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Slack Events API service that upserts Port slack_use_case entities.
+
+Parameters:
+  ServiceName:
+    Type: String
+    Default: feature-releases-slack-port
+  EnvironmentName:
+    Type: String
+    Default: demo
+    AllowedPattern: "^[a-z0-9-]+$"
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+  SlackChannelId:
+    Type: String
+    Default: C0B8VL89V0B
+  SlackChannelName:
+    Type: String
+    Default: test-channel
+  SlackWorkspaceDomain:
+    Type: String
+    Default: ""
+  PortBaseUrl:
+    Type: String
+    Default: https://api.getport.io
+  PortClientId:
+    Type: String
+    NoEcho: true
+  PortClientSecret:
+    Type: String
+    NoEcho: true
+  PortBlueprintIdentifier:
+    Type: String
+    Default: slack_use_case
+  PortDefaultStatus:
+    Type: String
+    Default: ready_for_cursor
+  PortDefaultPriority:
+    Type: String
+    Default: medium
+  TargetRepositoryUrl:
+    Type: String
+    Default: https://github.com/samdeepk-eng/Feature-releases.git
+  TargetBranch:
+    Type: String
+    Default: main
+
+Globals:
+  Function:
+    Runtime: python3.14
+    Timeout: 15
+    MemorySize: 256
+    Architectures:
+      - arm64
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  SlackToPortFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.14
+    Properties:
+      FunctionName: !Sub "${ServiceName}-${EnvironmentName}"
+      Description: Receives Slack release announcements and upserts Port slack_use_case entities.
+      Handler: app.main.handler
+      CodeUri: .
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          SLACK_CHANNEL_ID: !Ref SlackChannelId
+          SLACK_CHANNEL_NAME: !Ref SlackChannelName
+          SLACK_WORKSPACE_DOMAIN: !Ref SlackWorkspaceDomain
+          PORT_BASE_URL: !Ref PortBaseUrl
+          PORT_CLIENT_ID: !Ref PortClientId
+          PORT_CLIENT_SECRET: !Ref PortClientSecret
+          PORT_BLUEPRINT_IDENTIFIER: !Ref PortBlueprintIdentifier
+          PORT_DEFAULT_STATUS: !Ref PortDefaultStatus
+          PORT_DEFAULT_PRIORITY: !Ref PortDefaultPriority
+          TARGET_REPOSITORY_URL: !Ref TargetRepositoryUrl
+          TARGET_BRANCH: !Ref TargetBranch
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+
+Outputs:
+  SlackToPortFunctionName:
+    Description: Lambda function name.
+    Value: !Ref SlackToPortFunction
+  SlackToPortFunctionUrl:
+    Description: Configure this URL plus /slack/events as the Slack Event Subscription request URL.
+    Value: !GetAtt SlackToPortFunctionUrl.FunctionUrl
+  SlackEventSubscriptionUrl:
+    Description: Full Slack Event Subscription request URL.
+    Value: !Sub "${SlackToPortFunctionUrl.FunctionUrl}slack/events"
