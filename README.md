@@ -140,6 +140,29 @@ curl http://localhost:8000/healthz
 For a low-cost demo deployment on AWS, run this FastAPI app on Lambda using the
 included Mangum handler.
 
+### Quick AWS Console demo
+
+For the lightest demo path, use the standard-library-only Lambda file:
+`lambda_function.py`.
+
+1. Open AWS CloudFormation.
+2. Create a stack by uploading `template.console.yaml`.
+3. Fill in:
+   - `SlackSigningSecret`
+   - `SlackChannelId` as `C0B8VL89V0B`
+   - `SlackChannelName`
+   - `PortClientId`
+   - `PortClientSecret`
+4. After the stack completes, open the created Lambda function.
+5. Replace the placeholder code with the contents of `lambda_function.py`.
+6. Click **Deploy** in the Lambda console.
+7. Copy the CloudFormation output `SlackEventSubscriptionUrl` into Slack Event
+   Subscriptions.
+
+This quick path does not require a deployment zip, S3 upload, SAM, Docker, or
+GitHub Actions. It is intended for a demo. The packaged app and `template.yaml`
+below are a better repeatable deployment path.
+
 The repo includes a plain CloudFormation template at `template.yaml`. It creates:
 
 - The Lambda function
