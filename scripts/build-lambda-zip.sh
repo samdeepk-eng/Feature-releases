@@ -27,6 +27,7 @@ mkdir -p "$BUILD_DIR"
 
 "$PYTHON_BIN" -m pip install \
   --upgrade \
+  --no-compile \
   --target "$BUILD_DIR" \
   --platform "$PIP_PLATFORM" \
   --implementation cp \
