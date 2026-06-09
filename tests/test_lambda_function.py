@@ -95,3 +95,24 @@ def test_paste_only_lambda_handler_uses_inline_config(monkeypatch) -> None:
     )
     assert len(calls) == 2
     assert calls[1][1]["properties"]["summary"] == "Paste only demo v1"
+
+
+def test_paste_only_lambda_returns_url_verification_before_config(monkeypatch) -> None:
+    monkeypatch.setitem(
+        lambda_function_paste_only.CONFIG,
+        "SLACK_SIGNING_SECRET",
+        "paste-slack-signing-secret-here",
+    )
+    response = lambda_function_paste_only.lambda_handler(
+        {
+            "headers": {},
+            "body": json.dumps(
+                {"type": "url_verification", "challenge": "slack-challenge"}
+            ),
+            "isBase64Encoded": False,
+        },
+        None,
+    )
+
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"]) == {"challenge": "slack-challenge"}

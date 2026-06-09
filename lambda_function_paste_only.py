@@ -30,13 +30,18 @@ PLACEHOLDER = "paste-"
 
 
 def lambda_handler(event, context):
-    missing = missing_config()
-    if missing:
-        return response(500, {"error": "missing demo config", "fields": missing})
-
     body = event.get("body") or ""
     raw_body = base64.b64decode(body) if event.get("isBase64Encoded") else body.encode()
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+
+    payload = json.loads(raw_body)
+    if payload.get("type") == "url_verification":
+        # Demo convenience: let Slack verify the URL before Port credentials are filled.
+        return response(200, {"challenge": payload.get("challenge")})
+
+    missing = missing_config()
+    if missing:
+        return response(500, {"error": "missing demo config", "fields": missing})
 
     try:
         verify_slack_signature(
@@ -47,10 +52,6 @@ def lambda_handler(event, context):
         )
     except Exception as exc:
         return response(401, {"error": str(exc)})
-
-    payload = json.loads(raw_body)
-    if payload.get("type") == "url_verification":
-        return response(200, {"challenge": payload.get("challenge")})
 
     event_payload = payload.get("event") or {}
     announcement = parse_announcement(event_payload)
