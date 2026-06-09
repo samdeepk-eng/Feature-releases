@@ -115,4 +115,5 @@ def test_paste_only_lambda_returns_url_verification_before_config(monkeypatch) -
     )
 
     assert response["statusCode"] == 200
-    assert json.loads(response["body"]) == {"challenge": "slack-challenge"}
+    assert response["headers"]["content-type"] == "text/plain"
+    assert response["body"] == "slack-challenge"

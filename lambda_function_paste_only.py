@@ -37,7 +37,7 @@ def lambda_handler(event, context):
     payload = json.loads(raw_body)
     if payload.get("type") == "url_verification":
         # Demo convenience: let Slack verify the URL before Port credentials are filled.
-        return response(200, {"challenge": payload.get("challenge")})
+        return plain_text_response(200, payload.get("challenge", ""))
 
     missing = missing_config()
     if missing:
@@ -215,4 +215,12 @@ def response(status_code, body):
         "statusCode": status_code,
         "headers": {"content-type": "application/json"},
         "body": json.dumps(body),
+    }
+
+
+def plain_text_response(status_code, body):
+    return {
+        "statusCode": status_code,
+        "headers": {"content-type": "text/plain"},
+        "body": body,
     }
