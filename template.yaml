@@ -1,5 +1,4 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Transform: AWS::Serverless-2016-10-31
 Description: Slack Events API service that upserts Port slack_use_case entities.
 
 Parameters:
@@ -10,6 +9,62 @@ Parameters:
     Type: String
     Default: demo
     AllowedPattern: "^[a-z0-9-]+$"
+  LambdaRuntime:
+    Type: String
+    Default: python3.14
+    Description: Python runtime configured on the Lambda function.
+  LambdaArchitecture:
+    Type: String
+    Default: x86_64
+    AllowedValues:
+      - arm64
+      - x86_64
+  LambdaMemorySize:
+    Type: Number
+    Default: 256
+    MinValue: 128
+    MaxValue: 10240
+  LambdaTimeout:
+    Type: Number
+    Default: 15
+    MinValue: 1
+    MaxValue: 900
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues:
+      - 1
+      - 3
+      - 5
+      - 7
+      - 14
+      - 30
+      - 60
+      - 90
+      - 120
+      - 150
+      - 180
+      - 365
+      - 400
+      - 545
+      - 731
+      - 1096
+      - 1827
+      - 2192
+      - 2557
+      - 2922
+      - 3288
+      - 3653
+  CodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Lambda deployment zip.
+  CodeS3Key:
+    Type: String
+    Description: S3 object key for the Lambda deployment zip.
+  CodeS3ObjectVersion:
+    Type: String
+    Default: ""
+    Description: Optional S3 object version for the Lambda deployment zip.
   SlackSigningSecret:
     Type: String
     NoEcho: true
@@ -47,28 +102,62 @@ Parameters:
     Type: String
     Default: main
 
-Globals:
-  Function:
-    Runtime: python3.14
-    Timeout: 15
-    MemorySize: 256
-    Architectures:
-      - arm64
-    LoggingConfig:
-      LogFormat: JSON
+Conditions:
+  HasCodeS3ObjectVersion: !Not [!Equals [!Ref CodeS3ObjectVersion, ""]]
 
 Resources:
+  SlackToPortLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ServiceName}-${EnvironmentName}"
+      RetentionInDays: !Ref LogRetentionDays
+
+  SlackToPortExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ServiceName}-${EnvironmentName}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: lambda-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "${SlackToPortLogGroup.Arn}:*"
+
   SlackToPortFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: python3.14
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - SlackToPortLogGroup
+      - SlackToPortExecutionRole
     Properties:
       FunctionName: !Sub "${ServiceName}-${EnvironmentName}"
       Description: Receives Slack release announcements and upserts Port slack_use_case entities.
       Handler: app.main.handler
-      CodeUri: .
-      Policies:
-        - AWSLambdaBasicExecutionRole
+      Runtime: !Ref LambdaRuntime
+      Role: !GetAtt SlackToPortExecutionRole.Arn
+      Timeout: !Ref LambdaTimeout
+      MemorySize: !Ref LambdaMemorySize
+      Architectures:
+        - !Ref LambdaArchitecture
+      Code:
+        S3Bucket: !Ref CodeS3Bucket
+        S3Key: !Ref CodeS3Key
+        S3ObjectVersion: !If
+          - HasCodeS3ObjectVersion
+          - !Ref CodeS3ObjectVersion
+          - !Ref AWS::NoValue
+      LoggingConfig:
+        LogFormat: JSON
       Environment:
         Variables:
           SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
@@ -83,9 +172,21 @@ Resources:
           PORT_DEFAULT_PRIORITY: !Ref PortDefaultPriority
           TARGET_REPOSITORY_URL: !Ref TargetRepositoryUrl
           TARGET_BRANCH: !Ref TargetBranch
-      FunctionUrlConfig:
-        AuthType: NONE
-        InvokeMode: BUFFERED
+
+  SlackToPortFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      InvokeMode: BUFFERED
+      TargetFunctionArn: !Ref SlackToPortFunction
+
+  SlackToPortFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName: !Ref SlackToPortFunction
+      FunctionUrlAuthType: NONE
+      Principal: "*"
 
 Outputs:
   SlackToPortFunctionName:

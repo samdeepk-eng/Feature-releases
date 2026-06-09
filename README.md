@@ -140,102 +140,93 @@ curl http://localhost:8000/healthz
 For a low-cost demo deployment on AWS, run this FastAPI app on Lambda using the
 included Mangum handler.
 
-Lambda settings:
+The repo includes a plain CloudFormation template at `template.yaml`. It creates:
 
-- Runtime: Python 3.14, or another Python runtime supported by AWS Lambda
-- Handler: `app.main.handler`
-- Timeout: 15 seconds
-- Function URL auth type: `NONE`
+- The Lambda function
+- The Lambda execution role
+- The CloudWatch Logs log group
+- A public Lambda Function URL
+- The Lambda environment variables
 
-Minimum environment variables for the test channel demo:
+Because the app has Python dependencies, CloudFormation needs a Lambda zip file
+in S3. No SAM or GitHub Actions deployment is required.
 
-```env
-SLACK_SIGNING_SECRET=<from Slack app>
-SLACK_CHANNEL_ID=C0B8VL89V0B
-SLACK_CHANNEL_NAME=<test-channel-name>
-PORT_CLIENT_ID=<from Port>
-PORT_CLIENT_SECRET=<from Port>
-PORT_BLUEPRINT_IDENTIFIER=slack_use_case
-TARGET_REPOSITORY_URL=https://github.com/samdeepk-eng/Feature-releases.git
-TARGET_BRANCH=main
+### 1. Build the Lambda zip
+
+Build the package for the same Python runtime and architecture as your Lambda
+function. For a Python 3.14, `x86_64` Lambda:
+
+```bash
+LAMBDA_PYTHON_VERSION=3.14 LAMBDA_ARCHITECTURE=x86_64 ./scripts/build-lambda-zip.sh
 ```
 
-After creating the Function URL, configure Slack Event Subscriptions to call:
+This creates `lambda.zip`.
+
+If you choose `arm64` in CloudFormation, build with:
+
+```bash
+LAMBDA_PYTHON_VERSION=3.14 LAMBDA_ARCHITECTURE=arm64 ./scripts/build-lambda-zip.sh
+```
+
+### 2. Upload the zip to S3
+
+Use an existing S3 bucket or create a small deployment-artifacts bucket. Upload
+`lambda.zip`, then note the bucket and object key.
+
+Example AWS CLI upload:
+
+```bash
+aws s3 cp lambda.zip s3://<your-bucket>/feature-releases-slack-port/lambda.zip
+```
+
+If you prefer the AWS Console, upload `lambda.zip` through the S3 UI.
+
+### 3. Create the CloudFormation stack
+
+In the AWS CloudFormation console:
+
+1. Choose **Create stack**.
+2. Choose **Upload a template file**.
+3. Upload `template.yaml`.
+4. Fill in the required parameters.
+
+Important parameters for the test channel demo:
+
+```env
+CodeS3Bucket=<your-bucket>
+CodeS3Key=feature-releases-slack-port/lambda.zip
+LambdaRuntime=python3.14
+LambdaArchitecture=x86_64
+SlackSigningSecret=<from Slack app>
+SlackChannelId=C0B8VL89V0B
+SlackChannelName=<test-channel-name>
+PortClientId=<from Port>
+PortClientSecret=<from Port>
+PortBlueprintIdentifier=slack_use_case
+TargetRepositoryUrl=https://github.com/samdeepk-eng/Feature-releases.git
+TargetBranch=main
+```
+
+Use the defaults for `ServiceName`, `EnvironmentName`, memory, timeout, and
+architecture unless you have a reason to change them.
+
+### 4. Configure Slack
+
+After the stack is created, open the CloudFormation **Outputs** tab and copy the
+`SlackEventSubscriptionUrl` value into Slack Event Subscriptions. It will look
+like:
 
 ```text
 https://<lambda-function-url>/slack/events
 ```
 
-For a zip-based deployment, build the package with the same Python runtime as
-your Lambda function. If the Lambda runtime is Python 3.14, run these commands
-with Python 3.14:
-
-```bash
-rm -rf build lambda.zip
-python3.14 -m pip install --target build .
-cp -R app build/app
-(cd build && zip -r ../lambda.zip .)
-aws lambda update-function-code \
-  --function-name <function-name> \
-  --zip-file fileb://lambda.zip
-```
+For the live demo, post a release-looking message in channel `C0B8VL89V0B`.
+When moving to the production feature releases channel, update the stack with
+`SlackChannelId=C067Z2CJ0H0` and invite the Slack app to that channel.
 
 The base install is intentionally Lambda-focused. For local server or Docker
 runtime installs, use the `server` extra:
 
 ```bash
 python -m pip install ".[server]"
-```
-
-For the live demo, post a release-looking message in channel `C0B8VL89V0B`.
-When moving to the production feature releases channel, set
-`SLACK_CHANNEL_ID=C067Z2CJ0H0` and invite the Slack app to that channel.
-
-### Deploying with GitHub Actions
-
-This repo includes a manual GitHub Actions workflow,
-`.github/workflows/deploy-lambda.yml`, backed by the SAM template in
-`template.yaml`. It creates or updates:
-
-- The Lambda function
-- The Lambda execution role and CloudWatch Logs permission
-- A public Lambda Function URL
-- The Lambda environment variables
-
-Create these GitHub repository secrets:
-
-```text
-AWS_ROLE_TO_ASSUME
-SLACK_SIGNING_SECRET
-PORT_CLIENT_ID
-PORT_CLIENT_SECRET
-```
-
-Create these GitHub repository variables:
-
-```text
-AWS_REGION
-SLACK_WORKSPACE_DOMAIN
-```
-
-`AWS_ROLE_TO_ASSUME` should be an IAM role that trusts GitHub Actions OIDC for
-this repository and can deploy the CloudFormation/SAM stack. The deployment
-workflow does not require long-lived AWS access keys.
-
-To deploy the test channel demo:
-
-1. Open **Actions** in GitHub.
-2. Run **Deploy Lambda**.
-3. Use the defaults:
-   - `stack_name`: `feature-releases-slack-port-demo`
-   - `environment_name`: `demo`
-   - `slack_channel_id`: `C0B8VL89V0B`
-   - `target_branch`: `main`
-4. Copy the `SlackEventSubscriptionUrl` workflow output into Slack Event
-   Subscriptions.
-
-To deploy the production feature releases channel, run the same workflow with:
-
-```text
-slack_channel_id=C067Z2CJ0H0
 ```
